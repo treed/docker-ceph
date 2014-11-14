@@ -2,6 +2,7 @@
 set -e
 
 ### Bootstrap the ceph cluster
+ETCDCTL_PEERS=172.17.42.1:4001
 
 fsid=$(etcdctl get /ceph/$CLUSTER_NAME/fsid)
 monitor_names=""
@@ -39,8 +40,8 @@ fi
 echo Getting initial monmap
 if ! ceph mon getmap -o /etc/ceph/monmap; then
     echo Initial monmap not found, generating one
-    echo monmaptool --create ${MON_IP} --fsid $fsid /tmp/monmap
-    monmaptool --create ${MON_IP} --fsid $fsid /tmp/monmap
+    echo monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid $fsid /tmp/monmap
+    monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid $fsid /tmp/monmap
     if ! etcdctl mk /ceph/$CLUSTER_NAME/monmap < /tmp/monmap; then
         etcdctl get /ceph/$CLUSTER_NAME/monmap > /tmp/monmap
     fi
