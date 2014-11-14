@@ -1,5 +1,5 @@
 #!/bin/sh
-set +e
+set -e
 
 : ${CLUSTER_NAME:=ceph}
 
