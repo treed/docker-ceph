@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-### Bootstrap the ceph cluster
 ETCDCTL_PEERS=172.17.42.1:4001
+mkdir /etc/ceph
 
 fsid=$(etcdctl get /ceph/$CLUSTER_NAME/fsid)
 monitor_names=""
@@ -23,28 +23,26 @@ auth service required = cephx
 auth client required = cephx
 ENDHERE
 
-# First check to see if there already is a client admin key; if not make one and add it; if the adding then fails, assume one got added in the meantime
-if ! etcdctl get /ceph/$CLUSTER_NAME/keyrings/client-admin > /etc/ceph/ceph.client.admin.keyring; then
+if test -n "$monitor_names"; then
+    etcdctl get /ceph/$CLUSTER_NAME/keyrings/client-admin > /etc/ceph/ceph.client.admin.keyring
+else
     ceph-authtool /etc/ceph/ceph.client.admin.keyring --create-keyring --gen-key -n client.admin --set-uid=0 --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow'
-    if ! etcdctl mk /ceph/$CLUSTER_NAME/keyrings/client-admin < /etc/ceph/ceph.client.admin.keyring; then
-        etcdctl get /ceph/$CLUSTER_NAME/keyrings/client-admin > /etc/ceph/ceph.client.admin.keyring
-    fi
+    etcdctl mk /ceph/$CLUSTER_NAME/keyrings/client-admin < /etc/ceph/ceph.client.admin.keyring
 fi
 
-# Same deal with the mon. key
-
-if ! ceph auth get mon. -o /etc/ceph/ceph.mon.keyring; then
+if test -n "$monitor_names"; then
+    ceph auth get mon. -o /tmp/ceph.mon.keyring
+else
+    echo ceph-authtool /etc/ceph/ceph.mon.keyring --create-keyring --gen-key -n mon. --cap mon 'allow *'
     ceph-authtool /etc/ceph/ceph.mon.keyring --create-keyring --gen-key -n mon. --cap mon 'allow *'
 fi
 
 echo Getting initial monmap
-if ! ceph mon getmap -o /etc/ceph/monmap; then
-    echo Initial monmap not found, generating one
+if test -n "$monitor_names"; then
+    ceph mon getmap -o /etc/ceph/monmap
+else
     echo monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid $fsid /tmp/monmap
     monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid $fsid /tmp/monmap
-    if ! etcdctl mk /ceph/$CLUSTER_NAME/monmap < /tmp/monmap; then
-        etcdctl get /ceph/$CLUSTER_NAME/monmap > /tmp/monmap
-    fi
 fi
 
 echo Importing client keyring into temp keyring
@@ -59,6 +57,9 @@ ceph-mon --mkfs -i ${MON_NAME} --monmap /tmp/monmap --keyring /tmp/ceph.mon.keyr
 
 # Clean up the temporary key
 rm /tmp/ceph.mon.keyring
+
+echo Bootstrapped Monitor, Adding As Active
+etcdctl set /ceph/${CLUSTER_NAME}/monitors/${MON_NAME}/ip ${MON_IP}
 
 echo Launching ceph-mon
 exec /usr/bin/ceph-mon -d -i ${MON_NAME} --public-addr ${MON_IP}:6789
