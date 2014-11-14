@@ -3,6 +3,8 @@ set -ex
 
 ETCDCTL_PEERS=172.17.42.1:4001
 
+mkdir /tmp
+
 fsid=$(etcdctl get /ceph/$CLUSTER_NAME/fsid)
 monitor_names=""
 monitor_ips=""
