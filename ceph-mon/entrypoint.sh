@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 ETCDCTL_PEERS=172.17.42.1:4001
 
@@ -23,24 +23,28 @@ auth client required = cephx
 ENDHERE
 
 if test -n "$monitor_names"; then
-    etcdctl get /ceph/$CLUSTER_NAME/keyrings/client-admin > /etc/ceph/ceph.client.admin.keyring
+    echo Getting client key from etcd
+    etcdctl get /ceph/$CLUSTER_NAME/keyrings/client-admin > /etc/ceph/${CLUSTER_NAME}.client.admin.keyring
 else
-    ceph-authtool /etc/ceph/ceph.client.admin.keyring --create-keyring --gen-key -n client.admin --set-uid=0 --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow'
-    etcdctl mk /ceph/$CLUSTER_NAME/keyrings/client-admin < /etc/ceph/ceph.client.admin.keyring
+    echo Generating client key
+    ceph-authtool /etc/ceph/${CLUSTER_NAME}.client.admin.keyring --create-keyring --gen-key -n client.admin --set-uid=0 --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow'
+    etcdctl mk /ceph/$CLUSTER_NAME/keyrings/client-admin < /etc/ceph/${CLUSTER_NAME}.client.admin.keyring
 fi
 
 if test -n "$monitor_names"; then
-    ceph auth get mon. -o /tmp/ceph.mon.keyring
+    echo Getting monitor keyring from etcd
+    etcdctl get /ceph/$CLUSTER_NAME/keyrings/monitor > /etc/ceph/${CLUSTER_NAME}.mon.keyring
 else
-    echo ceph-authtool /etc/ceph/ceph.mon.keyring --create-keyring --gen-key -n mon. --cap mon 'allow *'
-    ceph-authtool /etc/ceph/ceph.mon.keyring --create-keyring --gen-key -n mon. --cap mon 'allow *'
+    echo Generating monitor keyring
+    ceph-authtool /etc/ceph/${CLUSTER_NAME}.mon.keyring --create-keyring --gen-key -n mon. --cap mon 'allow *'
+    etcdctl mk /ceph/$CLUSTER_NAME/keyrings/monitor < /etc/ceph/${CLUSTER_NAME}.mon.keyring
 fi
 
-echo Getting initial monmap
 if test -n "$monitor_names"; then
+    echo Getting initial monmap from pre-existing monitor
     ceph mon getmap -o /etc/ceph/monmap
 else
-    echo monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid $fsid /tmp/monmap
+    echo Generating monmap
     monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid $fsid /tmp/monmap
 fi
 
