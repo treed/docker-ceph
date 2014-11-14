@@ -3,8 +3,6 @@ set -ex
 
 ETCDCTL_PEERS=172.17.42.1:4001
 
-mkdir /tmp
-
 fsid=$(etcdctl get /ceph/$CLUSTER_NAME/fsid)
 monitor_names=""
 monitor_ips=""
@@ -44,7 +42,7 @@ fi
 
 if test -n "$monitor_names"; then
     echo Getting initial monmap from pre-existing monitor
-    ceph mon getmap -o /etc/ceph/monmap
+    ceph mon getmap -o /tmp/monmap
 else
     echo Generating monmap
     monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid $fsid /tmp/monmap
