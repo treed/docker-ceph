@@ -1,4 +1,4 @@
-FROM stackbrew/ubuntu:trusty
+FROM tianon/ubuntu-core:14.04
 MAINTAINER Ted Reed <ted.reed@gmail.com>
 
 # Make sure we are up-to-date
