@@ -45,7 +45,7 @@ if test -n "$monitor_names"; then
     ceph mon getmap -o /tmp/monmap
 else
     echo Generating monmap
-    monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid $fsid /tmp/monmap
+    monmaptool --create --add ${MON_NAME} ${MON_IP}:6789 --fsid $fsid /tmp/monmap
 fi
 
 echo Importing client keyring into temp keyring
