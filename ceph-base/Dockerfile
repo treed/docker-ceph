@@ -1,15 +1,9 @@
 FROM tianon/ubuntu-core:14.04
-MAINTAINER Ted Reed <ted.reed@gmail.com>
 
-# Make sure we are up-to-date
-RUN apt-get update
-RUN apt-get upgrade -y
+ADD build.sh /tmp/build.sh
+RUN /tmp/build.sh
 
-# Get etcdctl
-RUN apt-get install -y wget
-RUN cd /tmp && wget https://github.com/coreos/etcd/releases/download/v0.4.6/etcd-v0.4.6-linux-amd64.tar.gz && tar xvf etcd-v0.4.6-linux-amd64.tar.gz
-RUN mv /tmp/etcd-v0.4.6-linux-amd64/etcdctl /usr/local/bin
-RUN rm -rf /tmp/etcd-v0.4.6-linux-amd64
-
-# Install ceph
-RUN apt-get install -y ceph
+RUN mkdir -p /etc/confd
+ADD confd.toml /etc/confd/
+ADD conf.d /etc/confd/
+ADD templates /etc/confd/
