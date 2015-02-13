@@ -1,0 +1,5 @@
+#!/bin/bash
+ETCD_PORT=${ETCD_PORT:-4001}
+ETCD="$HOST:$ETCD_PORT"
+
+exec confd -node $ETCD -config-file /etc/confd/confd.toml -prefix $ETCD_PATH
