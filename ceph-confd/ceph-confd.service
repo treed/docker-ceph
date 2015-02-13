@@ -1,0 +1,11 @@
+[Unit]
+Description=Ceph confd Daemon
+
+[Service]
+TimeoutStartSec=0
+ExecStartPre=/usr/bin/docker pull treed/ceph-confd
+ExecStart=/usr/bin/docker run --name ceph-confd treed/ceph-confd
+ExecStop=/usr/bin/docker stop ceph-confd
+
+[X-Fleet]
+Global=true
