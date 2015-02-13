@@ -2,10 +2,12 @@
 Description=Ceph confd Daemon
 
 [Service]
+EnvironmentFile=/etc/environment
 TimeoutStartSec=0
 ExecStartPre=/usr/bin/docker pull treed/ceph-confd
 ExecStart=/usr/bin/docker run --name ceph-confd treed/ceph-confd
 ExecStop=/usr/bin/docker stop ceph-confd
+ExecStopPost=/usr/bin/docker rm ceph-confd
 
 [X-Fleet]
 Global=true
