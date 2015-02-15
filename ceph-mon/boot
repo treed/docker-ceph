@@ -38,20 +38,17 @@ if ! etcdctl --no-sync -C $ETCD get ${ETCD_PATH}/setup/complete >/dev/null 2>&1 
     etcd_set_default pgNum ${PG_NUM}
     etcd_set_default delayStart 15
 
-    # Generate administrator key
     ceph-authtool /etc/ceph/ceph.client.admin.keyring --create-keyring --gen-key -n client.admin --set-uid=0 --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow'
+    etcdctl --no-sync -C $ETCD set ${ETCD_PATH}/keyrings/monitor < /etc/ceph/ceph.mon.keyring >/dev/null
 
-    # Generate the mon. key
     ceph-authtool /etc/ceph/ceph.mon.keyring --create-keyring --gen-key -n mon. --cap mon 'allow *'
+    etcdctl --no-sync -C $ETCD set ${ETCD_PATH}/keyrings/client.admin < /etc/ceph/ceph.client.admin.keyring >/dev/null
 
     fsid=$(uuidgen)
     etcd_set /fsid ${fsid}
 
     # Generate initial monitor map
     monmaptool --create --add ${HOSTNAME} ${HOST} --fsid ${fsid} /etc/ceph/monmap
-
-    etcdctl --no-sync -C $ETCD set ${ETCD_PATH}/keyrings/monitor < /etc/ceph/ceph.mon.keyring >/dev/null
-    etcdctl --no-sync -C $ETCD set ${ETCD_PATH}/keyrings/client.admin < /etc/ceph/ceph.client.admin.keyring >/dev/null
 
     # mark setup as complete
     echo "Bootstrapping complete!"
