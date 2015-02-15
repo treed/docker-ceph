@@ -5,7 +5,7 @@ Description=Ceph confd Daemon
 EnvironmentFile=/etc/environment
 TimeoutStartSec=0
 ExecStartPre=/usr/bin/docker pull treed/ceph-confd
-ExecStart=/usr/bin/docker run --name ceph-confd treed/ceph-confd
+ExecStart=/bin/bash -c "/usr/bin/docker run -e ETCD=$ETCD --name ceph-confd treed/ceph-confd"
 ExecStop=/usr/bin/docker stop ceph-confd
 ExecStopPost=/usr/bin/docker rm ceph-confd
 
