@@ -2,4 +2,3 @@
 confdir  = "/etc/confd"
 interval = 5
 prefix   = "/ceph"
-quiet = true
