@@ -5,5 +5,5 @@ RUN /tmp/build.sh
 
 RUN mkdir -p /etc/confd
 ADD confd.toml /etc/confd/
-ADD conf.d /etc/confd/
-ADD templates /etc/confd/
+ADD conf.d /etc/confd/conf.d
+ADD templates /etc/confd/templates
