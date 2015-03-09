@@ -12,7 +12,7 @@ apt-get update && apt-get install -y curl net-tools sudo
 curl -sSL -o /usr/local/bin/etcdctl https://s3-us-west-2.amazonaws.com/opdemand/etcdctl-v0.4.6 \
     && chmod +x /usr/local/bin/etcdctl
 
-curl -sSL https://eunice.tedreed.info/confd -o /usr/local/bin/confd
+curl -sSL https://eunice.tedreed.info/dump/confd -o /usr/local/bin/confd
 chmod +x /usr/local/bin/confd
 
 curl -sSL 'https://ceph.com/git/?p=ceph.git;a=blob_plain;f=keys/release.asc' | apt-key add -
