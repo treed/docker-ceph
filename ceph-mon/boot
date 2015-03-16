@@ -4,65 +4,67 @@
 set -e
 
 CEPH_CLUSTER=${CEPH_CLUSTER:-ceph}
-ETCD_PATH="/ceph/$CEPH_CLUSTER"
-ETCD_PORT=${ETCD_PORT:-4001}
-ETCD=${ETCD:-http://$HOST:$ETCD_PORT}
 NUM_STORES=${NUM_STORES:-3}
 PG_NUM=${PG_NUM:-128} # default for 3 OSDs
 HOSTNAME=`hostname`
+CONSUL_SERVER=${CONSUL_SERVER:-http://127.0.0.1:8500}
 
-function etcd_set_default {
-  set +e
-  etcdctl --no-sync -C $ETCD mk $ETCD_PATH/$1 $2 >/dev/null 2>&1
-  if [[ $? -ne 0 && $? -ne 4 ]]; then
-    echo "etcd_set_default: an etcd error occurred. aborting..."
-    exit 1
-  fi
-  set -e
+function kv_set {
+    curl -sT <(echo $2) "$CONSUL_SERVER/v1/kv/ceph/$CEPH_CLUSTER/$1"
 }
 
-function etcd_set {
-    etcdctl --no-sync -C $ETCD set ${ETCD_PATH}$1 $2 >/dev/null
+function kv_set_file {
+    curl -sT $2 "$CONSUL_SERVER/v1/kv/ceph/$CEPH_CLUSTER/$1"
 }
 
-if ! etcdctl --no-sync -C $ETCD get ${ETCD_PATH}/setup/complete >/dev/null 2>&1 ; then
+function kv_set_once {
+    curl -sT <(echo $2) "$CONSUL_SERVER/v1/kv/ceph/$CEPH_CLUSTER/$1?cas=0" | grep -q true
+}
+
+function kv_set_default {
+    curl -sT <(echo $2) "$CONSUL_SERVER/v1/kv/ceph/$CEPH_CLUSTER/$1?cas=0" > /dev/null
+}
+
+function kv_get {
+    curl -sf $CONSUL_SERVER/v1/kv/ceph/$CEPH_CLUSTER/${1}?raw
+}
+
+if ! kv_get setup/complete > /dev/null ; then
   echo -n "Ceph hasn't yet been deployed. "
-  if etcdctl --no-sync -C $ETCD mk ${ETCD_PATH}/setup/lock $HOSTNAME >/dev/null 2>&1 \
-  || [[ `etcdctl --no-sync -C $ETCD get ${ETCD_PATH}/setup/lock` == "$HOSTNAME" ]] ; then
+  if kv_set_once setup/lock $HOSTNAME || [[ $(kv_get setup/lock) == "$HOSTNAME" ]] ; then
     echo "Bootstrapping..."
 
-    # set some defaults in etcd if they're not passed in as environment variables
     # these are templated in ceph.conf
-    etcd_set_default size ${NUM_STORES}
-    etcd_set_default minSize 1
-    etcd_set_default pgNum ${PG_NUM}
-    etcd_set_default delayStart 15
+    kv_set_default size ${NUM_STORES}
+    kv_set_default minSize 1
+    kv_set_default pgNum ${PG_NUM}
+    kv_set_default delayStart 15
 
     ceph-authtool /etc/ceph/ceph.client.admin.keyring --create-keyring --gen-key -n client.admin --set-uid=0 --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow'
-    etcdctl --no-sync -C $ETCD set ${ETCD_PATH}/keyrings/client.admin < /etc/ceph/ceph.client.admin.keyring >/dev/null
+    kv_set_file keyrings/client.admin /etc/ceph/ceph.client.admin.keyring
 
     ceph-authtool /etc/ceph/ceph.mon.keyring --create-keyring --gen-key -n mon. --cap mon 'allow *'
-    etcdctl --no-sync -C $ETCD set ${ETCD_PATH}/keyrings/monitor < /etc/ceph/ceph.mon.keyring >/dev/null
+    kv_set_file keyrings/monitor < /etc/ceph/ceph.mon.keyring >/dev/null
 
     fsid=$(uuidgen)
-    etcd_set /fsid ${fsid}
+    kv_set fsid ${fsid}
 
     # Generate initial monitor map
     monmaptool --create --add ${HOSTNAME} ${HOST} --fsid ${fsid} /etc/ceph/monmap
 
     # mark setup as complete
     echo "Bootstrapping complete!"
-    etcd_set /setup/complete yup
+    kv_set setup/complete yup
   else
       echo "Waiting for another monitor to complete bootstrapping..."
-    until etcdctl --no-sync -C $ETCD get ${ETCD_PATH}/setup/complete >/dev/null 2>&1 ; do
+    until kv_get setup/complete > /dev/null; do
       echo "Waiting..."
       sleep 5
     done
   fi
 fi
 
-until confd -onetime -node $ETCD -config-file /etc/confd/confd.toml -prefix $ETCD_PATH >/dev/null 2>&1; do
+until confd -onetime -node $CONSUL_SERVER -config-file /etc/confd/confd.toml -prefix /ceph/$CEPH_CLUSTER >/dev/null; do
   echo "Waiting for confd to write initial templates..."
   sleep 5
 done

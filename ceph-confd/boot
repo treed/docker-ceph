@@ -1,7 +1,5 @@
 #!/bin/bash
-ETCD_PORT=${ETCD_PORT:-4001}
-ETCD=${ETCD:-http://$HOST:$ETCD_PORT}
 CEPH_CLUSTER=${CEPH_CLUSTER:-ceph}
-ETCD_PATH="/ceph/$CEPH_CLUSTER"
+CONSUL_SERVER=${CONSUL_SERVER:-http://localhost:8500}
 
-exec confd -node $ETCD -config-file /etc/confd/confd.toml -prefix $ETCD_PATH
+exec confd -node $CONSUL_SERVER -backend confd -config-file /etc/confd/confd.toml -prefix /ceph/$CEPH_CLUSTER
